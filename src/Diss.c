@@ -11,9 +11,11 @@ char *BinToHex_arg(char*, int, char*);
 void Disassembler(char *file_instr, int pic, FILE* file_out)
 {
 	const Pic *mapping;
-	int pos, pos1, i, plus;
+	ssize_t nread;
+	size_t n=0;
+	int pos, pos1, i, plus, pos_hex;
 	char *hex_arg, *hex_arg_2;
-	char *word_hex=(char*)malloc(sizeof(char)*4);
+	char *word_hex=NULL;
 	char *bin=(char*)malloc(sizeof(char)*16);	
 	FILE* file_hex;
 	file_hex=fopen(file_instr, "r");
@@ -21,97 +23,103 @@ void Disassembler(char *file_instr, int pic, FILE* file_out)
 	{printf("Errore\n");}
 	else
 	{
-		while(fscanf(file_hex, "%s", word_hex)>0)
+		while( (nread=getline(&word_hex, &n, file_hex))!=-1)
 		{
-			if(pic == 16) 		{ mapping=pic_16; pos=2; }
-			else if(pic ==18)	{ mapping=pic_18; pos=0; }
-			i=0; pos1=0;
-			bin=HexToBin(word_hex, bin);
-			while(strncmp((bin+pos), (mapping->opcode_bin), (mapping->numb_bit))!=0)
+printf("%s", word_hex);
+			pos_hex=9;
+			while(word_hex[7]=='0' && word_hex[8]=='0' && (word_hex[pos_hex+3]!=10))
 			{
-				i++;
-				if(pic==16){mapping=pic_16+i;}
-				else if (pic==18){mapping=pic_18+i;}
-			}
-			fprintf(file_out, "%s", *(mapping->instr_name));
-			if( ((mapping->numb_bit)!=14 && pic==16) || ((mapping->numb_bit)!=16 && pic==18)) 		
-			{
-				pos=pos+(mapping->numb_bit);
-				if( strcmp( *(mapping->instr_name), *((mapping+1)->instr_name))==0 && pic==18 && i!=52)
+				if(pic == 16) 		{ mapping=pic_16; pos=2; }
+				else if(pic ==18)	{ mapping=pic_18; pos=0; }
+				i=0; pos1=0;
+				bin=HexToBin(word_hex+pos_hex, bin);
+				while(strncmp((bin+pos), (mapping->opcode_bin), (mapping->numb_bit))!=0)
 				{
-					//MOVFF && CALL && GOTO && LFSR
-					if(i==46)
-					{
-						if(mapping->arg_3%4!=0){plus=1;}
-						else if(mapping->arg_3%4==0){plus=0;}
-						hex_arg_2=(char*)malloc(sizeof(char)*(mapping->arg_3/4+plus));
-						hex_arg_2=BinToHex_arg(bin+pos, mapping->arg_3, hex_arg_2);
-						pos = pos+(mapping->arg_3);
-					}
-					if(mapping->arg_1%4!=0){plus=1;}
-					else if(mapping->arg_1%4==0){plus=0;}
-					hex_arg=(char*)malloc(sizeof(char)*(mapping->arg_1/4+plus));
-					hex_arg=BinToHex_arg(bin+pos, mapping->arg_1, hex_arg);	
-					if (i==16){fprintf(file_out, "\t0x%s\t0x", hex_arg);}
-					else if(i==46 || i==50){fprintf(file_out, "\t0x%s", hex_arg);}
-					else if(i==65)
-					{
-						fprintf(file_out, "\t0x%s", hex_arg);
-						pos=pos+(mapping->arg_1);
-						if(mapping->arg_2%4!=0){plus=1;}
-						else if(mapping->arg_2%4==0){plus=0;}
-						hex_arg=(char*)malloc(sizeof(char)*(mapping->arg_2/4+plus));
-						hex_arg=BinToHex_arg(bin+pos, mapping->arg_2, hex_arg);
-						fprintf(file_out, "\t0x%s", hex_arg);
-					}
-				fscanf(file_hex,"%s",word_hex);								
-					bin=HexToBin(word_hex, bin);
-					pos=((mapping+1)->numb_bit);
-					if((mapping+1)->arg_1%4!=0){plus=1;}
-					else if((mapping+1)->arg_1%4==0){plus=0;}
-					hex_arg=(char*)malloc(sizeof(char)*((mapping+1)->arg_1/4+plus));
-					hex_arg=BinToHex_arg(bin+pos, (mapping+1)->arg_1, hex_arg);
-					fprintf(file_out, "%s", hex_arg);
-					if(i==46){ fprintf(file_out, "\t0x%s", hex_arg_2);}
+					i++;
+					if(pic==16){mapping=pic_16+i;}
+					else if (pic==18){mapping=pic_18+i;}
 				}
-				else
+				fprintf(file_out, "%s", *(mapping->instr_name));
+				if( ((mapping->numb_bit)!=14 && pic==16) || ((mapping->numb_bit)!=16 && pic==18)) 	
 				{
-					if((mapping->arg_1)!=0)
+					pos=pos+(mapping->numb_bit);
+/*					if( strcmp( *(mapping->instr_name), *((mapping+1)->instr_name))==0 && pic==18 && i!=52)
 					{
-						//BinToHexArg_1
-						pos1=pos+(mapping->arg_2)+(mapping->arg_3);
+						//MOVFF && CALL && GOTO && LFSR
+						if(i==46)
+						{
+							if(mapping->arg_3%4!=0){plus=1;}
+							else if(mapping->arg_3%4==0){plus=0;}
+							hex_arg_2=(char*)malloc(sizeof(char)*(mapping->arg_3/4+plus));
+							hex_arg_2=BinToHex_arg(bin+pos, mapping->arg_3, hex_arg_2);
+							pos = pos+(mapping->arg_3);
+						}
 						if(mapping->arg_1%4!=0){plus=1;}
 						else if(mapping->arg_1%4==0){plus=0;}
 						hex_arg=(char*)malloc(sizeof(char)*(mapping->arg_1/4+plus));
-						hex_arg=BinToHex_arg(bin+pos1, mapping->arg_1, hex_arg);
-						fprintf(file_out, "\t0x%s", hex_arg);
-					}
-					if((mapping->arg_2)!=0)
+						hex_arg=BinToHex_arg(bin+pos, mapping->arg_1, hex_arg);	
+						if (i==16){fprintf(file_out, "\t0x%s\t0x", hex_arg);}
+						else if(i==46 || i==50){fprintf(file_out, "\t0x%s", hex_arg);}
+						else if(i==65)
+						{
+							fprintf(file_out, "\t0x%s", hex_arg);
+							pos=pos+(mapping->arg_1);
+							if(mapping->arg_2%4!=0){plus=1;}
+							else if(mapping->arg_2%4==0){plus=0;}
+							hex_arg=(char*)malloc(sizeof(char)*(mapping->arg_2/4+plus));
+							hex_arg=BinToHex_arg(bin+pos, mapping->arg_2, hex_arg);
+							fprintf(file_out, "\t0x%s", hex_arg);
+						}	
+				fscanf(file_hex,"%s",word_hex);								
+						bin=HexToBin(word_hex, bin);
+						pos=((mapping+1)->numb_bit);
+						if((mapping+1)->arg_1%4!=0){plus=1;}
+						else if((mapping+1)->arg_1%4==0){plus=0;}
+						hex_arg=(char*)malloc(sizeof(char)*((mapping+1)->arg_1/4+plus));
+						hex_arg=BinToHex_arg(bin+pos, (mapping+1)->arg_1, hex_arg);
+						fprintf(file_out, "%s", hex_arg);
+						if(i==46){ fprintf(file_out, "\t0x%s", hex_arg_2);}
+					}	
+					else
 					{
-						//BinToHexArg_2
-						pos1=pos;
-						hex_arg=(char*)malloc(sizeof(char));
-						hex_arg=BinToHex_arg(bin+pos1, mapping->arg_2, hex_arg);
-						fprintf(file_out, "\t0x%s", hex_arg);
-					}
-					if((mapping->arg_3)!=0)	
-					{
-						//BinToHexArg_3
-						pos1=pos+(mapping->arg_2);
-						hex_arg=(char*)malloc(sizeof(char));
-						hex_arg=BinToHex_arg(bin+pos1, mapping->arg_3, hex_arg);
-						fprintf(file_out, "\t0x%s", hex_arg);
-					}
+*/						if((mapping->arg_1)!=0)
+						{
+							//BinToHexArg_1
+							pos1=pos+(mapping->arg_2)+(mapping->arg_3);
+							if(mapping->arg_1%4!=0){plus=1;}
+							else if(mapping->arg_1%4==0){plus=0;}
+							hex_arg=(char*)malloc(sizeof(char)*(mapping->arg_1/4+plus));
+							hex_arg=BinToHex_arg(bin+pos1, mapping->arg_1, hex_arg);
+							fprintf(file_out, "\t0x%s", hex_arg);
+						}
+						if((mapping->arg_2)!=0)
+						{
+							//BinToHexArg_2
+							pos1=pos;
+							hex_arg=(char*)malloc(sizeof(char));
+							hex_arg=BinToHex_arg(bin+pos1, mapping->arg_2, hex_arg);
+							fprintf(file_out, "\t0x%s", hex_arg);
+						}
+						if((mapping->arg_3)!=0)	
+						{
+							//BinToHexArg_3
+							pos1=pos+(mapping->arg_2);
+							hex_arg=(char*)malloc(sizeof(char));
+							hex_arg=BinToHex_arg(bin+pos1, mapping->arg_3, hex_arg);
+							fprintf(file_out, "\t0x%s", hex_arg);
+						}
+					//}
 				}
+				fprintf(file_out, "\n");
+				pos_hex+=4;
 			}
-			fprintf(file_out, "\n");
 		}
 	}
-	free(hex_arg);
+/*	free(hex_arg);
 	free(hex_arg_2);
 	free(word_hex);
 	free(bin);
-	fclose(file_hex);
+*/	fclose(file_hex);
 	fclose(file_out);
 }
 
