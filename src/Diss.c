@@ -14,8 +14,9 @@ void Disassembler(char *file_instr, int pic, FILE* file_out)
 	ssize_t nread;
 	size_t n=0;
 	int pos, pos1, i, plus, pos_hex;
-	char *hex_arg, *hex_arg_2;
-	char *word_hex=NULL;
+	char *hex_arg=(char*)malloc(sizeof(char)*5), *hex_arg_2=(char*)malloc(sizeof(char)*5);
+	char *word = NULL;
+	char *word_hex=(char*)malloc(sizeof(char)*4);
 	char *bin=(char*)malloc(sizeof(char)*16);	
 	FILE* file_hex;
 	file_hex=fopen(file_instr, "r");
@@ -23,16 +24,21 @@ void Disassembler(char *file_instr, int pic, FILE* file_out)
 	{printf("Errore\n");}
 	else
 	{
-		while( (nread=getline(&word_hex, &n, file_hex))!=-1)
+		while( (nread=getline(&word, &n, file_hex))!=-1)
 		{
-printf("%s", word_hex);
+printf("%s", word);
 			pos_hex=9;
-			while(word_hex[7]=='0' && word_hex[8]=='0' && (word_hex[pos_hex+3]!=10))
+			while(word[7]=='0' && word[8]=='0' && (word[pos_hex+3]!=0))
 			{
+				word_hex[0]=word[pos_hex+2];
+				word_hex[1]=word[pos_hex+3];
+				word_hex[2]=word[pos_hex];
+				word_hex[3]=word[pos_hex+1];
+printf("%s\t", word_hex);
 				if(pic == 16) 		{ mapping=pic_16; pos=2; }
 				else if(pic ==18)	{ mapping=pic_18; pos=0; }
 				i=0; pos1=0;
-				bin=HexToBin(word_hex+pos_hex, bin);
+				bin=HexToBin(word_hex, bin);
 				while(strncmp((bin+pos), (mapping->opcode_bin), (mapping->numb_bit))!=0)
 				{
 					i++;
@@ -110,16 +116,18 @@ printf("%s", word_hex);
 						}
 					//}
 				}
+printf("\n");
 				fprintf(file_out, "\n");
 				pos_hex+=4;
 			}
 		}
 	}
-/*	free(hex_arg);
+	free(hex_arg);
 	free(hex_arg_2);
+	free(word);
 	free(word_hex);
 	free(bin);
-*/	fclose(file_hex);
+	fclose(file_hex);
 	fclose(file_out);
 }
 
