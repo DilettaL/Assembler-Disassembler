@@ -13,11 +13,15 @@ void Disassembler(char *file_instr, int pic, FILE* file_out)
 	const Pic *mapping;
 	ssize_t nread;
 	size_t n=0;
-	int pos, pos1, i, plus, pos_hex;
+	int pos, pos1, i, plus, pos_hex, maxinstr;
 	char *hex_arg=(char*)malloc(sizeof(char)*5), *hex_arg_2=(char*)malloc(sizeof(char)*5);
 	char *word = NULL;
 	char *word_hex=(char*)malloc(sizeof(char)*4);
-	char *bin=(char*)malloc(sizeof(char)*16);	
+	char *bin=(char*)malloc(sizeof(char)*16);
+	if(pic==16)
+	{	maxinstr=36;	}
+	else if(pic==18)
+	{	maxinstr=80;	}	
 	FILE* file_hex;
 	file_hex=fopen(file_instr, "r");
 	if(file_hex==NULL||file_out==NULL)
@@ -26,7 +30,6 @@ void Disassembler(char *file_instr, int pic, FILE* file_out)
 	{
 		while( (nread=getline(&word, &n, file_hex))!=-1)
 		{
-printf("%s", word);
 			pos_hex=9;
 			while(word[7]=='0' && word[8]=='0' && (word[pos_hex+3]!=0))
 			{
@@ -34,22 +37,26 @@ printf("%s", word);
 				word_hex[1]=word[pos_hex+3];
 				word_hex[2]=word[pos_hex];
 				word_hex[3]=word[pos_hex+1];
-printf("%s\t", word_hex);
 				if(pic == 16) 		{ mapping=pic_16; pos=2; }
 				else if(pic ==18)	{ mapping=pic_18; pos=0; }
 				i=0; pos1=0;
 				bin=HexToBin(word_hex, bin);
-				while(strncmp((bin+pos), (mapping->opcode_bin), (mapping->numb_bit))!=0)
+				while((strncmp((bin+pos), (mapping->opcode_bin), (mapping->numb_bit))!=0) && (i<maxinstr))
 				{
 					i++;
 					if(pic==16){mapping=pic_16+i;}
 					else if (pic==18){mapping=pic_18+i;}
 				}
+				if(i>maxinstr)
+				{
+					printf("Istruzione inserita non corretta.\n");
+					continue;
+				}
 				fprintf(file_out, "%s", *(mapping->instr_name));
 				if( ((mapping->numb_bit)!=14 && pic==16) || ((mapping->numb_bit)!=16 && pic==18)) 	
 				{
 					pos=pos+(mapping->numb_bit);
-/*					if( strcmp( *(mapping->instr_name), *((mapping+1)->instr_name))==0 && pic==18 && i!=52)
+					if( strcmp( *(mapping->instr_name), *((mapping+1)->instr_name))==0 && pic==18 && i!=52)
 					{
 						//MOVFF && CALL && GOTO && LFSR
 						if(i==46)
@@ -75,8 +82,20 @@ printf("%s\t", word_hex);
 							hex_arg=(char*)malloc(sizeof(char)*(mapping->arg_2/4+plus));
 							hex_arg=BinToHex_arg(bin+pos, mapping->arg_2, hex_arg);
 							fprintf(file_out, "\t0x%s", hex_arg);
-						}	
-				fscanf(file_hex,"%s",word_hex);								
+						}
+						if(word[pos_hex+3]==0)
+						{
+							pos_hex+=4;
+						}
+						else
+						{
+							getline(&word, &n, file_hex);
+							pos_hex=9;
+						}
+						word_hex[0]=word[pos_hex+2];
+						word_hex[1]=word[pos_hex+3];
+						word_hex[2]=word[pos_hex];
+						word_hex[3]=word[pos_hex+1];
 						bin=HexToBin(word_hex, bin);
 						pos=((mapping+1)->numb_bit);
 						if((mapping+1)->arg_1%4!=0){plus=1;}
@@ -88,7 +107,7 @@ printf("%s\t", word_hex);
 					}	
 					else
 					{
-*/						if((mapping->arg_1)!=0)
+						if((mapping->arg_1)!=0)
 						{
 							//BinToHexArg_1
 							pos1=pos+(mapping->arg_2)+(mapping->arg_3);
@@ -114,9 +133,8 @@ printf("%s\t", word_hex);
 							hex_arg=BinToHex_arg(bin+pos1, mapping->arg_3, hex_arg);
 							fprintf(file_out, "\t0x%s", hex_arg);
 						}
-					//}
+					}
 				}
-printf("\n");
 				fprintf(file_out, "\n");
 				pos_hex+=4;
 			}
