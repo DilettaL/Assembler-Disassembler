@@ -56,7 +56,7 @@ void Disassembler(char *file_instr, int pic, FILE* file_out)
 				if( ((mapping->numb_bit)!=14 && pic==16) || ((mapping->numb_bit)!=16 && pic==18)) 	
 				{
 					pos=pos+(mapping->numb_bit);
-					if( strcmp( *(mapping->instr_name), *((mapping+1)->instr_name))==0 && pic==18 && i!=52)
+					if( i!=maxinstr && pic==18 && (strcmp( *(mapping->instr_name), *((mapping+1)->instr_name))==0) && i!=52)
 					{
 						//MOVFF && CALL && GOTO && LFSR
 						if(i==46)
@@ -83,7 +83,7 @@ void Disassembler(char *file_instr, int pic, FILE* file_out)
 							hex_arg=BinToHex_arg(bin+pos, mapping->arg_2, hex_arg);
 							fprintf(file_out, "\t0x%s", hex_arg);
 						}
-						if(word[pos_hex+3]==0)
+						if(word[pos_hex+3+4]!=0)
 						{
 							pos_hex+=4;
 						}
